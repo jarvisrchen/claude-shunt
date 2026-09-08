@@ -1,7 +1,7 @@
 # claude-shunt
 
 Cuts Claude Code token spend by routing big file reads and boilerplate generation to a cheap worker model.
-A local reimplementation of the pattern in Spotify's "Portal by Spotify cut my Claude Code token usage by 90%".
+A local reimplementation of the pattern in Spotify Engineering's [Portal by Spotify cut my Claude Code token usage by 90%](https://engineering.atspotify.com/2026/9/portal-by-spotify-cut-my-claude-code-token-usage-by-90) (Dimitri Mazmanov, 2026-09-03). Same three layers, hook / scripts / skill, without the hosted Portal service.
 Measured on real files: a three-file read that costs Claude 12,505 tokens comes back as ~800 tokens of bullets, a 93.7% cut.
 Design, measurements, and the provider bake-off are in [DESIGN.md](DESIGN.md).
 
