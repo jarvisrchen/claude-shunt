@@ -40,12 +40,31 @@ git clone <this repo> ~/Documents/code/claude-shunt
 
 Then restart any open Claude Code sessions. Hooks are snapshotted when a session starts.
 
+`uninstall.sh` reverses all of it except the env file.
+
+## Choosing which LLM does the work
+
+Everything about models lives in one file, `~/.config/shunt/env`. You need a key for at least one provider. Leave the other blank.
+
 ```
-GEMINI_API_KEY=...     # aistudio.google.com, any key with gemini-3.6-flash access
-MINIMAX_API_KEY=...    # platform.minimax.io, host is api.minimax.io
+GEMINI_API_KEY=...     # aistudio.google.com
+MINIMAX_API_KEY=...    # platform.minimax.io
+
+#SHUNT_READ_PROVIDER=gemini-3.6-flash   # who answers bulk-read
+#SHUNT_WRITE_PROVIDER=minimax           # who generates code-write output
 ```
 
-`uninstall.sh` reverses all of it except the env file.
+Defaults are Gemini 3.6 Flash for reads and MiniMax M3 for writes, the winners of the bake-off in [DESIGN.md](DESIGN.md). To change either, uncomment the line and set it. Takes effect on the next call, no restart.
+
+| you want | set |
+|---|---|
+| Gemini for everything, no MiniMax account | `SHUNT_WRITE_PROVIDER=gemini-3.6-flash` and leave `MINIMAX_API_KEY` blank |
+| MiniMax for everything, no Gemini account | `SHUNT_READ_PROVIDER=minimax` and leave `GEMINI_API_KEY` blank |
+| a different Gemini model | any model name from `/v1beta/models`, e.g. `gemini-3.5-flash-lite` |
+| a different MiniMax model | `minimax:MiniMax-M2.5` |
+| try one call on another model | `bulk-read --provider minimax ...` or `code-write --provider gemini-3.6-flash ...` |
+
+Adding a provider that is not Gemini or MiniMax (OpenAI, a local Ollama, anything with a chat endpoint) is one `elif` in `call()` in `bin/shunt-llm.py`: build the request, return `(text, prompt_tokens, completion_tokens)`. The rest of the tool does not care who answered.
 
 ## Verify it is working
 
@@ -85,8 +104,7 @@ code-write --spec "Generate a config stub for staging" --reference config/prod.y
 | `shunt off` / `shunt on` | kill switch, file-based, no restart |
 | `SHUNT_OFF=1` | same, as an env var for one process |
 | `SHUNT_MIN_LINES` | line threshold, default 350 |
-| `SHUNT_READ_PROVIDER` | default `gemini-3.6-flash`; also `gemini-3.5-flash-lite`, `minimax` (M3), `minimax:MiniMax-M2.5` |
-| `SHUNT_WRITE_PROVIDER` | default `minimax` (M3); also `minimax:MiniMax-M2.5`, `gemini-3.6-flash` |
+| `SHUNT_READ_PROVIDER` / `SHUNT_WRITE_PROVIDER` | which model does each job; see "Choosing which LLM does the work" |
 
 ## Layout
 

@@ -4,6 +4,7 @@ Files never enter Claude's context, only the worker's bullets do."""
 import argparse, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import importlib; llm = importlib.import_module("shunt-llm")
+llm.load_env()  # so SHUNT_*_PROVIDER from the config file feeds the argparse defaults
 
 SYSTEM = ("You are a precise code analyst. Read the provided files and answer the question concisely. "
           "Output structured bullets only. No greetings, no prose, no preambles. "

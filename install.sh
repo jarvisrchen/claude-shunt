@@ -10,8 +10,17 @@ for f in bulk-read code-write shunt; do ln -sf "$HERE/bin/$f" "$BIN/$f"; done
 ln -sfn "$HERE/skill" "$HOME/.claude/skills/shunt"
 
 if [ ! -f "$CFG/env" ]; then
-  umask 077; printf 'GEMINI_API_KEY=\nMINIMAX_API_KEY=\n' > "$CFG/env"
-  echo "created $CFG/env: fill in both keys"
+  umask 077; cat > "$CFG/env" <<'ENV'
+# Keys. Fill in the ones for the providers you use; leave the others blank.
+GEMINI_API_KEY=
+MINIMAX_API_KEY=
+
+# Which model handles each job. Uncomment to override the defaults.
+# Any gemini-* model name, or minimax (= MiniMax-M3), or minimax:<model>.
+#SHUNT_READ_PROVIDER=gemini-3.6-flash
+#SHUNT_WRITE_PROVIDER=minimax
+ENV
+  echo "created $CFG/env: fill in your key(s) and pick providers"
 fi
 
 python3 - "$SETTINGS" "$HERE" <<'PY'

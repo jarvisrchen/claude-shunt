@@ -12,6 +12,13 @@ def load_env():
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k, v)
 
+def need(var):
+    v = os.environ.get(var)
+    if not v:
+        sys.exit(f"shunt: {var} is empty. Set it in {ENV}, or pick a provider whose key you have "
+                 f"(SHUNT_READ_PROVIDER / SHUNT_WRITE_PROVIDER in that same file).")
+    return v
+
 def call(provider, system, user, temperature=0.2, timeout=120):
     load_env()
     if provider.startswith("gemini"):
@@ -22,7 +29,7 @@ def call(provider, system, user, temperature=0.2, timeout=120):
             "contents": [{"parts": [{"text": user}]}],
             "generationConfig": {"temperature": temperature, "thinkingConfig": {"thinkingLevel": "minimal"}},
         }
-        headers = {"x-goog-api-key": os.environ["GEMINI_API_KEY"]}
+        headers = {"x-goog-api-key": need("GEMINI_API_KEY")}
         r = _post(url, body, headers, timeout)
         text = "".join(p.get("text", "") for p in r["candidates"][0]["content"]["parts"])
         u = r.get("usageMetadata", {})
@@ -32,7 +39,7 @@ def call(provider, system, user, temperature=0.2, timeout=120):
         url = "https://api.minimax.io/v1/text/chatcompletion_v2"
         body = {"model": model, "temperature": temperature,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-        headers = {"Authorization": "Bearer " + os.environ["MINIMAX_API_KEY"]}
+        headers = {"Authorization": "Bearer " + need("MINIMAX_API_KEY")}
         r = _post(url, body, headers, timeout)
         if r.get("base_resp", {}).get("status_code"):
             sys.exit(f"minimax error: {r['base_resp']}")
