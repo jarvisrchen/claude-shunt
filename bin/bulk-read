@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""bulk-read --question Q --paths f1 f2 ...  Delegates reading large files to a cheap worker model.
+Files never enter Claude's context, only the worker's bullets do."""
+import argparse, os, sys, time
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import importlib; llm = importlib.import_module("shunt-llm")
+
+SYSTEM = ("You are a precise code analyst. Read the provided files and answer the question concisely. "
+          "Output structured bullets only. No greetings, no prose, no preambles. "
+          "When you cite code, name the file and the function or symbol, not line numbers.")
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--question", required=True)
+ap.add_argument("--paths", nargs="+", required=True)
+ap.add_argument("--provider", default=os.environ.get("SHUNT_READ_PROVIDER", "gemini-3.6-flash"))
+a = ap.parse_args()
+
+t = time.time()
+text, pin, pout = llm.call(a.provider, SYSTEM, llm.wrap_files(a.paths) + f"\n\nQuestion: {a.question}")
+print(text.strip())
+print(f"\n[bulk-read {a.provider}: {pin} in / {pout} out tokens, {time.time()-t:.1f}s]", file=sys.stderr)

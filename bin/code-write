@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""code-write --spec S --reference f [--target out]  Generates boilerplate matching reference files.
+With --target the code goes straight to disk; Claude never sees it."""
+import argparse, os, sys, time
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import importlib; llm = importlib.import_module("shunt-llm")
+
+SYSTEM = ("You generate code files based on a spec and reference files. Match the existing patterns, "
+          "conventions, naming, and style exactly. Output only the code. No explanations, no markdown fences.")
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--spec", required=True)
+ap.add_argument("--reference", nargs="+", required=True)
+ap.add_argument("--target")
+ap.add_argument("--provider", default=os.environ.get("SHUNT_WRITE_PROVIDER", "minimax"))
+a = ap.parse_args()
+
+t = time.time()
+user = llm.wrap_files(a.reference) + f"\n\nSpec: {a.spec}"
+if a.target:
+    user += f"\nTarget file path: {a.target}"
+text, pin, pout = llm.call(a.provider, SYSTEM, user)
+code = llm.strip_fences(text)
+if a.target:
+    os.makedirs(os.path.dirname(os.path.abspath(a.target)), exist_ok=True)
+    open(a.target, "w").write(code)
+    print(f"wrote {a.target} ({len(code.splitlines())} lines)")
+else:
+    sys.stdout.write(code)
+print(f"[code-write {a.provider}: {pin} in / {pout} out tokens, {time.time()-t:.1f}s]", file=sys.stderr)
