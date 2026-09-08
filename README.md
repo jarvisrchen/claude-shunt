@@ -19,16 +19,18 @@ Everything is stdlib Python 3 and bash. No dependencies, no package manager.
 
 Paste this into Claude Code (or any agent with a shell) on the new machine:
 
-> Clone `https://github.com/jarvisrchen/claude-shunt` to `~/Documents/code/claude-shunt` and run its `install.sh`. Then put my Gemini key and MiniMax key into `~/.config/shunt/env` as `GEMINI_API_KEY=` and `MINIMAX_API_KEY=` (I will paste them next). Confirm `~/.local/bin` is on my PATH, run `shunt status`, and tell me to restart my Claude Code sessions.
+> Clone `https://github.com/jarvisrchen/claude-shunt` somewhere permanent (it runs from the clone) and run its `install.sh`. Then put my Gemini key and MiniMax key into `~/.config/shunt/env` as `GEMINI_API_KEY=` and `MINIMAX_API_KEY=` (I will paste them next). Confirm `~/.local/bin` is on my PATH, run `shunt status`, and tell me to restart my Claude Code sessions.
 
 That is the whole install. The agent runs three commands and edits one file.
 
 ## Install by hand
 
 ```bash
-git clone <this repo> ~/Documents/code/claude-shunt
-~/Documents/code/claude-shunt/install.sh
+git clone https://github.com/jarvisrchen/claude-shunt
+cd claude-shunt && ./install.sh
 ```
+
+The clone can live anywhere. Nothing is copied out of it: the commands, the skill, and the hook all point back into the clone by absolute path, which `install.sh` works out for itself. So put it somewhere you will not delete, and re-run `install.sh` if you ever move it.
 
 `install.sh` is idempotent (re-run it after `git pull`). It:
 
@@ -70,7 +72,7 @@ Adding a provider that is not Gemini or MiniMax (OpenAI, a local Ollama, anythin
 
 ```bash
 shunt status                                   # shunt is ON (threshold 350 lines)
-python3 ~/Documents/code/claude-shunt/test_hook.py   # ok: 11 hook cases
+shunt test                                     # ok: 11 hook cases
 bulk-read --question "What does this file do?" --paths some/file-over-350-lines.py
 ```
 
@@ -113,7 +115,7 @@ bin/shunt-hook.py   PreToolUse hook (the allow/block rules)
 bin/shunt-llm.py    shared worker caller: Gemini + MiniMax, the two system prompts
 bin/bulk-read       delegated read
 bin/code-write      delegated write
-bin/shunt           on | off | status
+bin/shunt           on | off | status | test
 skill/SKILL.md      what Claude reads to know when to delegate
 install.sh          idempotent installer
 uninstall.sh
