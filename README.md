@@ -19,7 +19,7 @@ Everything is stdlib Python 3 and bash. No dependencies, no package manager.
 
 Paste this into Claude Code (or any agent with a shell) on the new machine:
 
-> Clone `<REPO_URL>` to `~/Documents/code/claude-shunt` and run its `install.sh`. Then put my Gemini key and MiniMax key into `~/.config/shunt/env` as `GEMINI_API_KEY=` and `MINIMAX_API_KEY=` (I will paste them next). Confirm `~/.local/bin` is on my PATH, run `shunt status`, and tell me to restart my Claude Code sessions.
+> Clone `https://github.com/jarvisrchen/claude-shunt` to `~/Documents/code/claude-shunt` and run its `install.sh`. Then put my Gemini key and MiniMax key into `~/.config/shunt/env` as `GEMINI_API_KEY=` and `MINIMAX_API_KEY=` (I will paste them next). Confirm `~/.local/bin` is on my PATH, run `shunt status`, and tell me to restart my Claude Code sessions.
 
 That is the whole install. The agent runs three commands and edits one file.
 
