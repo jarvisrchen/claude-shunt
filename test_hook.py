@@ -20,6 +20,10 @@ cases = [
     (run("Read", {"file_path": big.name}, {"SHUNT_OFF": "1"}), 0, "SHUNT_OFF disables"),
     (run("Read", {"file_path": big.name}, {"SHUNT_MIN_LINES": "1000"}), 0, "threshold env respected"),
 ]
+off = os.path.expanduser("~/.config/shunt/off"); had = os.path.exists(off)
+open(off, "w").close()
+cases.append((run("Read", {"file_path": big.name}), 0, "shunt off file disables"))
+if not had: os.unlink(off)
 for got, want, name in cases:
     assert got == want, f"{name}: exit {got}, wanted {want}"
 os.unlink(big.name); os.unlink(small.name)

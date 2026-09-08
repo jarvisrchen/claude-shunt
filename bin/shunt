@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# shunt on|off|status  Toggle the read-blocking hook without touching settings.json.
+# Takes effect on the next tool call in every running Claude session.
+set -e
+OFF=~/.config/shunt/off
+case "${1:-status}" in
+  on)  rm -f "$OFF"; echo "shunt on: reads over ${SHUNT_MIN_LINES:-350} lines get routed to bulk-read" ;;
+  off) mkdir -p "$(dirname "$OFF")"; touch "$OFF"; echo "shunt off: Claude reads everything itself. 'shunt on' to re-enable" ;;
+  status) [ -e "$OFF" ] && echo "shunt is OFF" || echo "shunt is ON (threshold ${SHUNT_MIN_LINES:-350} lines)" ;;
+  *) echo "usage: shunt on|off|status" >&2; exit 1 ;;
+esac

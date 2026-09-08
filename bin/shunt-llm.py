@@ -28,7 +28,7 @@ def call(provider, system, user, temperature=0.2, timeout=120):
         u = r.get("usageMetadata", {})
         return text, u.get("promptTokenCount", 0), u.get("candidatesTokenCount", 0)
     if provider.startswith("minimax"):
-        model = {"minimax": "MiniMax-M2.5"}.get(provider, provider.replace("minimax:", ""))
+        model = {"minimax": "MiniMax-M3"}.get(provider, provider.replace("minimax:", ""))
         url = "https://api.minimax.io/v1/text/chatcompletion_v2"
         body = {"model": model, "temperature": temperature,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PreToolUse hook: block big reads and point Claude at bulk-read.
 Exit 2 + stderr = block with the message fed back to Claude. Exit 0 = allow.
-Set SHUNT_OFF=1 to disable. SHUNT_MIN_LINES (default 350) is the threshold."""
+Disable with `shunt off` (touches ~/.config/shunt/off) or SHUNT_OFF=1. SHUNT_MIN_LINES (default 350) is the threshold."""
 import json, os, re, shlex, sys
 
 MIN = int(os.environ.get("SHUNT_MIN_LINES", "350"))
@@ -21,11 +21,12 @@ def block(paths, n):
         f"Either read a targeted slice (Read with offset/limit, or sed -n 'A,Bp'), or delegate:\n"
         f"  bulk-read --question \"<what you need to know>\" --paths {files}\n"
         f"bulk-read returns bullets from a cheap worker model; the file never enters your context. "
-        f"For editing, ask bulk-read which function/section to look at, then do a targeted Read of just that.\n")
+        f"For editing, ask bulk-read which function/section to look at, then do a targeted Read of just that. "
+        f"If the user wants Claude to read everything itself, run: shunt off\n")
     sys.exit(2)
 
 def main():
-    if os.environ.get("SHUNT_OFF"):
+    if os.environ.get("SHUNT_OFF") or os.path.exists(os.path.expanduser("~/.config/shunt/off")):
         return
     d = json.load(sys.stdin)
     tool, inp = d.get("tool_name"), d.get("tool_input", {})

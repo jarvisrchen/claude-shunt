@@ -15,7 +15,7 @@ Keep Claude on reasoning, debugging, and editing.
 | Portal AiKA modes (hosted worker agents, YAML config, precedence rules) | Two direct API calls. A mode is just a system prompt plus a model name, so `shunt-llm.py` holds both prompts inline. No mode registry until there is a third mode. |
 | Portal CLI + auth (`/portal:setup`) | Keys in `~/.config/shunt/env`, mode 600. |
 | Shunt plugin from a marketplace | Three files in `bin/`, a hook entry in `settings.json`, a skill file. |
-| Gemini 2.5 Flash worker | `gemini-3.6-flash` for reads (2.5 is retired for new keys). MiniMax-M2.5 for writes, since Richard already pays for it and it is cheaper on output. |
+| Gemini 2.5 Flash worker | `gemini-3.6-flash` for reads (2.5 is retired for new keys). MiniMax-M3 for writes: best output quality in the bake-off, and generated code never enters Claude's context so its latency is the only cost. |
 
 ## Architecture: the same three layers
 
@@ -38,7 +38,7 @@ Claude reads ~800 tokens      Claude reads one "wrote X (N lines)" line
 Hook contract (Claude Code): stdin JSON `{tool_name, tool_input}`; exit 2 blocks the call and feeds stderr back to Claude as the reason.
 
 Allow rules, in order:
-1. `SHUNT_OFF` set → allow everything.
+1. `~/.config/shunt/off` exists (`shunt off`) or `SHUNT_OFF` set → allow everything.
 2. `Read` with `offset` or `limit` → allow (targeted, needed for edits).
 3. Images, PDFs, notebooks → allow (line count is meaningless).
 4. Bash with `|` or `>` → allow (grep-style query, or output not entering context).
@@ -57,7 +57,25 @@ Question: "What does each file do, and which external services or files does eac
 | bulk-read, gemini-3.6-flash | 12,505 at worker | 792 | 93.7% | 19.0s |
 | bulk-read, minimax M2.5 | 12,505 at worker | ~600 | ~95% | ~15s |
 
-code-write, MiniMax-M2.5, README for a new agent from two reference READMEs: 688 in / 681 out at the worker, 39 lines to disk, 10.7s, Claude ingests one line.
+### Provider bake-off (2026-09-08, same three files, two runs each)
+
+| provider | out tokens (enter Claude) | latency | notes |
+|---|---|---|---|
+| gemini-3.6-flash | 789, 843 | 9.6s, 5.3s | tight bullets; the 19s first run was a one-off under load |
+| gemini-3.5-flash-lite | 514, 540 | 55.2s, 2.5s | terse but wildly variable latency |
+| MiniMax-M3 | 1064, 1592 | 11.0s, 13.1s | richest answer (named service accounts, plists), but 1.3 to 2x the tokens into Claude |
+| MiniMax-M2.5 | 1194, 746 | 18.0s, 11.1s | middle on both |
+
+Read default stays `gemini-3.6-flash`: fastest median and the fewest tokens landing in Claude's context, which is the number that matters.
+
+code-write, same README task from two reference READMEs:
+
+| provider | out tokens | latency | quality |
+|---|---|---|---|
+| MiniMax-M3 | 2911, 2192 | 24.3s, 20.4s | matched the reference structure, sensible launchd/plist details, added a self-check section |
+| MiniMax-M2.5 | 524, 536 | 7.0s, 6.6s | thinner, and one wrong line (symlinked a folder to a plist path) |
+
+Write default is `MiniMax-M3`. Output goes to disk, not into Claude, so the extra tokens are free on the Claude side and 20s is cheaper than Claude emitting 500 lines itself.
 
 Quality check on the sample: the gemini answer correctly separated "documented only" (the README) from "actually touches" (the scripts), and listed every read and write path in `build.py`. That matches the article's finding: structural questions delegate well.
 
@@ -70,6 +88,7 @@ Gemini gotcha found in testing: `thinkingConfig.thinkingBudget` is rejected by 3
 - [x] Step 3. Hook with the allow matrix above; `test_hook.py` covers 10 cases.
 - [x] Step 4. Install: settings.json entry (first in PreToolUse so it runs before rtk), skill file.
 - [x] Step 5. Live test in a session: whole-file Read of a 561-line file blocked, offset read passed.
+- [x] Step 5b. `shunt on|off|status` toggle via `~/.config/shunt/off`, read by the hook on every call, so it flips mid-session with no restart. Provider bake-off above.
 - [ ] Step 6. Run for a week at 350 lines. Watch for two failure modes: Claude ignoring the block and re-reading in slices (the threshold is too low for that file type), and Claude delegating a debugging question (the skill wording needs tightening).
 - [ ] Step 7. Measure. Compare `rtk gain` and ccusage-style per-session totals for the week before and after. Decide the threshold from that, not from the article.
 - [ ] Step 8. Decide whether `bulk-read` should become an `rtk` subcommand. Argument for: one hook chain, one place for token accounting. Argument against: rtk is a filter over shell output, not an LLM caller, and mixing keys into it widens its blast radius. Default: keep separate unless step 7 shows the two hooks fighting.
@@ -85,4 +104,4 @@ Gemini gotcha found in testing: `thinkingConfig.thinkingBudget` is rejected by 3
 
 - No line numbers from the worker, so editing still needs a targeted Read. The hook lets those through.
 - No reasoning delegation. The skill file says so; the hook cannot enforce it.
-- 10 to 20 seconds per delegation. Below the threshold, a direct read is both cheaper and faster.
+- 5 to 13 seconds per delegated read, 20s per delegated write. Below the threshold, a direct read is both cheaper and faster.
