@@ -15,6 +15,15 @@ Three layers, same as Spotify's:
 
 Everything is stdlib Python 3 and bash. No dependencies, no package manager.
 
+## Prerequisites
+
+- macOS or Linux (Windows via WSL). The install uses symlinks and `~/.local/bin`.
+- `git` and `python3` 3.8+. Nothing else: no pip packages, no npm. The scripts use only the Python standard library.
+- Claude Code installed, so `~/.claude/settings.json` exists for the hook.
+- An API key for at least one worker: Gemini (aistudio.google.com) or MiniMax (platform.minimax.io).
+
+`install.sh` checks the first three and stops with a one-line message if any is missing.
+
 ## Install by telling an AI agent
 
 Paste this into Claude Code (or any agent with a shell) on the new machine:
@@ -29,7 +38,7 @@ That is the whole install. The agent runs three commands and edits one file.
 curl -fsSL https://raw.githubusercontent.com/jarvisrchen/claude-shunt/main/install.sh | bash
 ```
 
-Clones into `~/.claude-shunt` (or `$SHUNT_HOME`) and installs from there. Run the same line again to update. Needs `git` and `python3`, which Claude Code already needs.
+Clones into `~/.claude-shunt` (or `$SHUNT_HOME`) and installs from there. Run the same line again to update.
 
 ## Install from a clone
 

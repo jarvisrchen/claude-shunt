@@ -6,6 +6,10 @@
 #   without a clone:   curl -fsSL https://raw.githubusercontent.com/jarvisrchen/claude-shunt/main/install.sh | bash
 # The second clones into $SHUNT_HOME (default ~/.claude-shunt) and continues from there.
 set -euo pipefail
+case "$(uname -s)" in Darwin|Linux) ;; *) echo "claude-shunt supports macOS and Linux (needs symlinks and ~/.local/bin). On Windows use WSL."; exit 1;; esac
+for tool in git python3; do command -v "$tool" >/dev/null || { echo "missing: $tool. Install it and re-run. (macOS: xcode-select --install)"; exit 1; }; done
+python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' || { echo "python3 is $(python3 -V 2>&1); need 3.8+"; exit 1; }
+[ -d "$HOME/.claude" ] || echo "note: ~/.claude not found. Install Claude Code first (https://claude.com/claude-code) or the hook has nowhere to go; continuing anyway."
 REPO="https://github.com/jarvisrchen/claude-shunt"
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/bin/shunt-hook.py" ]; then
   HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
