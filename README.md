@@ -129,3 +129,7 @@ DESIGN.md           architecture, measurements, rollout plan
 - The worker misses subtle bugs. Do not delegate debugging; the skill says so, the hook cannot enforce it.
 - 5 to 13 seconds per delegated read, ~20 seconds per delegated write. Under the threshold a direct read is cheaper and faster.
 - Gemini 2.5 Flash is retired for new keys. Gemini 3.6 rejects `thinkingBudget`; the caller uses `thinkingLevel: minimal`.
+
+## License
+
+MIT.

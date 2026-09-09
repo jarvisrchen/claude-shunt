@@ -1,7 +1,7 @@
 # claude-shunt: design and rollout plan
 
 Source pattern: Spotify Engineering, "Portal by Spotify cut my Claude Code token usage by 90%" (2026-09-03).
-Local extract: `~/Documents/code/_vault/resources/Portal-Spotify-Claude-Code-Token-Delegation.md`.
+Article: https://engineering.atspotify.com/2026/9/portal-by-spotify-cut-my-claude-code-token-usage-by-90
 
 ## Goal
 
@@ -48,7 +48,7 @@ Allow rules, in order:
 
 ## Measured on real files (2026-09-07)
 
-Three vault files, 902 lines total: `site/build.mjs`, `agents/buildsheetsync/README.md`, `personal/finance/build.py`.
+Three files from a private docs repo, 902 lines total: a Node build script, an agent README, and a Python report generator.
 Question: "What does each file do, and which external services or files does each one touch?"
 
 | | tokens Claude would ingest | tokens Claude actually ingests | saving | latency |
