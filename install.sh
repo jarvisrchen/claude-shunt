@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 # Install claude-shunt on this machine. Idempotent: safe to re-run after git pull.
 # Needs: python3, Claude Code, a Gemini key and a MiniMax key.
+# Two ways to run it:
+#   from a clone:      ./install.sh
+#   without a clone:   curl -fsSL https://raw.githubusercontent.com/jarvisrchen/claude-shunt/main/install.sh | bash
+# The second clones into $SHUNT_HOME (default ~/.claude-shunt) and continues from there.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="https://github.com/jarvisrchen/claude-shunt"
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/bin/shunt-hook.py" ]; then
+  HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+  HERE="${SHUNT_HOME:-$HOME/.claude-shunt}"
+  if [ -d "$HERE/.git" ]; then git -C "$HERE" pull -q --ff-only; echo "updated $HERE"
+  else git clone -q "$REPO" "$HERE"; echo "cloned into $HERE"; fi
+fi
 BIN="$HOME/.local/bin"; CFG="$HOME/.config/shunt"; SETTINGS="$HOME/.claude/settings.json"
 
 mkdir -p "$BIN" "$CFG" "$HOME/.claude/skills"
