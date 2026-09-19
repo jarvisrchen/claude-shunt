@@ -52,7 +52,7 @@ The clone can live anywhere. Nothing is copied out of it: the commands, the skil
 `install.sh` is idempotent (re-run it after `git pull`). It:
 
 - symlinks `bulk-read`, `code-write`, `shunt` into `~/.local/bin` (warns if that is not on PATH)
-- symlinks `~/.claude/skills/shunt` to the repo's `skill/` folder
+- symlinks `~/.claude/skills/shunt` to the repo's `skill/` folder (the `/shunt` command: config, pick, and the delegation guide) and `~/.claude/skills/shunt-stats` to `skills/shunt-stats/` (the `/shunt-stats` report)
 - creates `~/.config/shunt/env` (mode 600) if missing; **fill in both keys**
 - inserts the hook entry at the top of `hooks.PreToolUse` in `~/.claude/settings.json`, replacing any older shunt entry
 - runs the hook self-test
@@ -188,7 +188,8 @@ DESIGN.md           architecture, measurements, rollout plan
 - The worker gives no line numbers, so editing still needs a targeted `Read`. The hook lets those through.
 - The worker misses subtle bugs. Do not delegate debugging; the skill says so, the hook cannot enforce it.
 - 5 to 13 seconds per delegated read, ~20 seconds per delegated write. Under the threshold a direct read is cheaper and faster.
-- Gemini 2.5 Flash is retired for new keys. Gemini 3.6 rejects `thinkingBudget`; the caller uses `thinkingLevel: minimal`.
+- Gemini 2.5 Flash is retired for new keys. Gemini 3.6 rejects `thinkingBudget` and wants `thinkingLevel: minimal`; 3.8 rejects `minimal` and takes `low`. The caller sends `minimal` and retries once with `low` on that specific 400. Omitting the level entirely makes 3.8 spend about 120 thinking tokens even on a one-word answer, so a level is always sent.
+- The slice-avoided figure in `shunt stats` is an estimate at 10 tokens per line. The routed-to-workers figure is exact, from provider usage fields.
 
 ## License
 

@@ -177,3 +177,25 @@ Gemini gotcha found in testing: `thinkingConfig.thinkingBudget` is rejected by 3
 - No line numbers from the worker, so editing still needs a targeted Read. The hook lets those through.
 - No reasoning delegation. The skill file says so; the hook cannot enforce it.
 - 5 to 13 seconds per delegated read, 20s per delegated write. Below the threshold, a direct read is both cheaper and faster.
+
+## Telemetry (2026-09-18)
+
+Until now the only trace was the stderr line each script printed, which survived only if Claude's transcript kept it.
+Mining transcripts for the first eleven days found 226 hook blocks but only 24 delegations, and no way to tell which agent did what.
+
+Now every hook decision and worker call appends one JSON line to `~/.config/shunt/log.jsonl` through `bin/shunt-log.py`.
+Four events: `block` (whole-file read refused), `slice` (offset/limit read of a file over the threshold), `delegate` (Claude ran `bulk-read` or `code-write`), `call` (the worker ran, with the provider's own token counts and seconds).
+Hook events carry `session_id`, `agent_id`, and `agent_type` from the hook payload, so subagent reads show under their agent type.
+Script events carry the session id from `CLAUDE_CODE_SESSION_ID`, which is all the scripts can see, so per-agent attribution comes from hook events only.
+Logging never raises.
+
+`shunt stats` renders it in the `rtk gain` layout.
+Two savings figures, kept separate on purpose: tokens routed to workers minus tokens returned is exact, while tokens avoided by slicing is an estimate at 10 tokens per line because the hook never sees a token count.
+The number to watch is blocks that were followed by neither a delegate nor a slice.
+That is where the hook was pure friction.
+
+`shunt config` (and `/shunt` inside Claude Code) edits `~/.config/shunt/env`: read and write providers, threshold, keys.
+`shunt config models` lists what each vendor's list endpoint returns, in the string form the setters accept, and `pick` turns that into a numbered menu.
+Setting a provider runs a one-line test call first.
+That check caught Gemini 3.8 Flash rejecting `thinkingLevel: minimal` on its first use; the caller now retries once with `low`.
+
