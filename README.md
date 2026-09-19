@@ -138,14 +138,8 @@ shunt stats --session 5129         # one session, by id prefix
 shunt log 50                       # tail the raw JSONL
 ```
 
-A gauge in the Claude Code status line shows the current session's counters, `shunt 3⛔ 2↘ 24k`: blocked reads, delegations, worker tokens kept out of context (or `shunt off`).
-Wrap whatever `statusLine.command` you already have in `~/.claude/settings.json`:
+Inside Claude Code, `/shunt-stats` runs the same report (arguments pass through, e.g. `/shunt-stats --since all`).
 
-```json
-"statusLine": {"type": "command", "command": "python3 /path/to/claude-shunt/bin/shunt-statusline.py -- <your existing command>"}
-```
-
-With nothing after `--` it prints only the shunt segment.
 `SHUNT_LOG` overrides the log path. Logging never raises, so a full disk or a bad line cannot break a tool call.
 
 ## Knobs
@@ -167,8 +161,8 @@ bin/code-write      delegated write
 bin/shunt           on | off | status | test | stats | log
 bin/shunt-log.py    append-only JSONL telemetry shared by the hook and the scripts
 bin/shunt-stats.py  the report behind `shunt stats`
-bin/shunt-statusline.py  wraps your statusLine command and appends this session's counters
 skill/SKILL.md      what Claude reads to know when to delegate
+skills/shunt-stats/SKILL.md  the /shunt-stats slash command
 install.sh          idempotent installer
 uninstall.sh
 test_hook.py        12 allow/block cases plus the log and stats check

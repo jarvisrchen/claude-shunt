@@ -23,6 +23,7 @@ BIN="$HOME/.local/bin"; CFG="$HOME/.config/shunt"; SETTINGS="$HOME/.claude/setti
 mkdir -p "$BIN" "$CFG" "$HOME/.claude/skills"
 for f in bulk-read code-write shunt; do ln -sf "$HERE/bin/$f" "$BIN/$f"; done
 ln -sfn "$HERE/skill" "$HOME/.claude/skills/shunt"
+ln -sfn "$HERE/skills/shunt-stats" "$HOME/.claude/skills/shunt-stats"
 
 if [ ! -f "$CFG/env" ]; then
   umask 077; cat > "$CFG/env" <<'ENV'

@@ -2,7 +2,7 @@
 # Remove claude-shunt from this machine. Leaves ~/.config/shunt/env (your keys) in place.
 set -euo pipefail
 SETTINGS="$HOME/.claude/settings.json"
-rm -f "$HOME/.local/bin/bulk-read" "$HOME/.local/bin/code-write" "$HOME/.local/bin/shunt" "$HOME/.claude/skills/shunt"
+rm -f "$HOME/.local/bin/bulk-read" "$HOME/.local/bin/code-write" "$HOME/.local/bin/shunt" "$HOME/.claude/skills/shunt" "$HOME/.claude/skills/shunt-stats"
 [ -f "$SETTINGS" ] && python3 - "$SETTINGS" <<'PY'
 import json, sys
 p = sys.argv[1]; d = json.load(open(p))
