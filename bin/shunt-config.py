@@ -5,6 +5,7 @@ shunt config write <provider>     default worker for code-write
 shunt config threshold <lines>    whole-file reads over this many lines get blocked
 shunt config key <vendor> <key>   store an API key: gemini | minimax | deepseek | anthropic
 shunt config models [vendor]      list models each vendor offers, as the strings read/write accept
+shunt config pick [read|write]    numbered menu of those models, then sets the one you choose
 Edits ~/.config/shunt/env in place. Setting a provider runs a one-line test call against it."""
 import json, os, re, sys, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -52,8 +53,10 @@ def _get(url, headers):
     with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=20) as r:
         return json.load(r)
 
-def models(only=None):
+def models(only=None, quiet=False):
+    """Print the lists; return the flat list of provider strings."""
     llm.load_env()
+    out = []
     lists = {
         "gemini": lambda k: [m["name"].split("/", 1)[1] for m in _get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {"x-goog-api-key": k}).get("models", [])
                              if "generateContent" in m.get("supportedGenerationMethods", []) and not any(x in m["name"] for x in SKIP)],
@@ -71,10 +74,27 @@ def models(only=None):
             continue
         try:
             for m in fn(key):
-                print(f"  {m}")
+                out.append(m)
+                print(f"  {len(out):>2}. {m}" if quiet else f"  {m}")
         except Exception as e:
             print(f"  error: {str(e)[:120]}")
-    print("\nuse one with:  shunt config read <model>   or   shunt config write <model>")
+    if not quiet:
+        print("\nuse one with:  shunt config read <model>   or   shunt config write <model>")
+    return out
+
+def pick(job):
+    opts = models(quiet=True)
+    if not sys.stdin.isatty():
+        print(f"\nnot a terminal: run  shunt config {job} <model>  with one of the above")
+        return
+    llm.load_env()
+    cur = os.environ.get(VARS[job], DEFAULTS[VARS[job]])
+    raw = input(f"\n{job} provider is {cur}. Pick a number (enter to keep): ").strip()
+    if not raw:
+        return
+    if not raw.isdigit() or not 1 <= int(raw) <= len(opts):
+        sys.exit("no such number")
+    main([job, opts[int(raw) - 1]])
 
 def test(provider):
     try:
@@ -105,6 +125,8 @@ def main(argv):
         print(f"threshold = {args[0]} lines  (takes effect on the next tool call)")
     elif cmd == "models" and len(args) <= 1 and (not args or args[0] in VENDORS):
         models(args[0] if args else None)
+    elif cmd == "pick" and len(args) <= 1 and (not args or args[0] in ("read", "write")):
+        pick(args[0] if args else "read")
     elif cmd == "key" and len(args) == 2 and args[0] in VENDORS:
         set_var(VENDORS[args[0]], args[1])
         print(f"{VENDORS[args[0]]} saved")

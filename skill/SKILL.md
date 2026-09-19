@@ -12,6 +12,7 @@ description: Delegate large file reads and boilerplate generation to a cheap wor
 ```
 
 If the user invoked `/shunt` with arguments, the block above is the result of `shunt config <arguments>`: relay it verbatim in a code block, then stop.
+Exception, `/shunt pick [read|write]`: the block above is a numbered model list. Use AskUserQuestion to let the user choose: first the vendor (gemini, minimax, deepseek, anthropic, only those with a key), then the model within that vendor (newest first, at most four options; the user can type any other id via Other). Then run `shunt config <read|write> <chosen model>` and relay its output. Default job is read when none was given.
 To change a setting for the user, run one of these and relay the output:
 
 ```bash
@@ -20,6 +21,7 @@ shunt config write minimax              # default worker for code-write
 shunt config threshold 500              # block whole-file reads over this many lines
 shunt config key gemini <key>           # store an API key: gemini | minimax | deepseek | anthropic
 shunt config models [gemini]            # list the models each vendor offers, ready to paste into read/write
+shunt config pick [read|write]          # numbered menu in a terminal; in Claude Code use /shunt pick and choose from the prompt
 ```
 
 A provider that fails its test call (bad key, unknown model) is refused and nothing changes.

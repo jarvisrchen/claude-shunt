@@ -87,6 +87,7 @@ shunt config write minimax              # default worker for code-write
 shunt config threshold 500              # block whole-file reads over this many lines
 shunt config key gemini <key>           # store an API key: gemini | minimax | deepseek | anthropic
 shunt config models [gemini]            # list the models each vendor offers, ready to paste into read/write
+shunt config pick [read|write]          # numbered menu, sets the one you choose; /shunt pick does the same inside Claude Code
 ```
 
 Editing the file by hand works too. Either way it takes effect on the next call, no restart.
