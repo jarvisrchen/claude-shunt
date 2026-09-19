@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shunt on|off|status|test|stats|log  Toggle the read-blocking hook, or inspect its telemetry.
+# shunt on|off|status|test|stats|log|config  Toggle the hook, inspect telemetry, or change providers/keys/threshold.
 # Takes effect on the next tool call in every running Claude session.
 set -e
 OFF=~/.config/shunt/off
@@ -9,6 +9,7 @@ case "${1:-status}" in
   status) [ -e "$OFF" ] && echo "shunt is OFF" || echo "shunt is ON (threshold ${SHUNT_MIN_LINES:-350} lines)" ;;
   test) python3 "$(dirname "$(python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$0")")/../test_hook.py" ;;
   stats) shift; python3 "$(dirname "$(python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$0")")/shunt-stats.py" "$@" ;;
+  config) shift; python3 "$(dirname "$(python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$0")")/shunt-config.py" "$@" ;;
   log) tail -n "${2:-20}" "${SHUNT_LOG:-$HOME/.config/shunt/log.jsonl}" ;;
-  *) echo "usage: shunt on|off|status|test|stats [--since 7d|all] [--session ID] [--last N]|log [N]" >&2; exit 1 ;;
+  *) echo "usage: shunt on|off|status|test|stats [--since 7d|all] [--session ID] [--last N]|log [N]|config [read|write|threshold|key ...]" >&2; exit 1 ;;
 esac

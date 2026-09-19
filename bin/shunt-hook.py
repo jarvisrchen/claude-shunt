@@ -6,7 +6,15 @@ import json, os, re, shlex, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import importlib; shlog = importlib.import_module("shunt-log")
 
-MIN = int(os.environ.get("SHUNT_MIN_LINES", "350"))
+def _env_file(name):
+    try:
+        for line in open(os.path.expanduser("~/.config/shunt/env")):
+            if line.startswith(name + "="):
+                return line.split("=", 1)[1].split(" #", 1)[0].strip()
+    except OSError:
+        pass
+
+MIN = int(os.environ.get("SHUNT_MIN_LINES") or _env_file("SHUNT_MIN_LINES") or 350)
 READ_CMDS = {"cat", "head", "tail", "less", "more"}
 
 def lines_in(path):

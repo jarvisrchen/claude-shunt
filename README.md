@@ -77,7 +77,18 @@ DEEPSEEK_API_KEY=...   # platform.deepseek.com - optional, DeepSeek V4.1 Flash a
 
 Put each `KEY=value` on its own line with nothing after the value - `load_env()` treats anything after the first ` #` on the line as a comment and strips it, but a key that legitimately contains ` #` (rare, but some providers allow it) would be truncated. Put such a key on a line by itself with no trailing comment.
 
-Defaults are Gemini 3.6 Flash for reads and MiniMax M3 for writes, the winners of the bake-off in [DESIGN.md](DESIGN.md). To change either, uncomment the line and set it. Takes effect on the next call, no restart.
+Defaults are Gemini 3.6 Flash for reads and MiniMax M3 for writes, the winners of the bake-off in [DESIGN.md](DESIGN.md).
+Change them with `shunt config` (or `/shunt <same arguments>` inside Claude Code), which edits this file for you and runs a one-line test call before saving a provider:
+
+```bash
+shunt config                            # show providers, threshold, which keys are set
+shunt config read gemini-3.8-flash      # default worker for bulk-read
+shunt config write minimax              # default worker for code-write
+shunt config threshold 500              # block whole-file reads over this many lines
+shunt config key gemini <key>           # store an API key: gemini | minimax | deepseek | anthropic
+```
+
+Editing the file by hand works too. Either way it takes effect on the next call, no restart.
 
 | you want | set |
 |---|---|
@@ -148,7 +159,7 @@ Inside Claude Code, `/shunt-stats` runs the same report (arguments pass through,
 |---|---|
 | `shunt off` / `shunt on` | kill switch, file-based, no restart |
 | `SHUNT_OFF=1` | same, as an env var for one process |
-| `SHUNT_MIN_LINES` | line threshold, default 350 |
+| `SHUNT_MIN_LINES` | line threshold, default 350; env var or `shunt config threshold N` |
 | `SHUNT_READ_PROVIDER` / `SHUNT_WRITE_PROVIDER` | which model does each job; see "Choosing which LLM does the work" |
 
 ## Layout
@@ -158,7 +169,8 @@ bin/shunt-hook.py   PreToolUse hook (the allow/block rules)
 bin/shunt-llm.py    shared worker caller: Gemini + MiniMax, the two system prompts
 bin/bulk-read       delegated read
 bin/code-write      delegated write
-bin/shunt           on | off | status | test | stats | log
+bin/shunt           on | off | status | test | stats | log | config
+bin/shunt-config.py show or change providers, threshold, keys
 bin/shunt-log.py    append-only JSONL telemetry shared by the hook and the scripts
 bin/shunt-stats.py  the report behind `shunt stats`
 skill/SKILL.md      what Claude reads to know when to delegate

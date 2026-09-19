@@ -5,7 +5,25 @@ description: Delegate large file reads and boilerplate generation to a cheap wor
 
 # shunt: bulk-read and code-write
 
-Two commands, both on PATH. They call Gemini 3.6 Flash (reads) and MiniMax M3 (writes) directly; keys live in `~/.config/shunt/env`.
+## Current configuration
+
+```
+!`shunt config $ARGUMENTS`
+```
+
+If the user invoked `/shunt` with arguments, the block above is the result of `shunt config <arguments>`: relay it verbatim in a code block, then stop.
+To change a setting for the user, run one of these and relay the output:
+
+```bash
+shunt config read gemini-3.8-flash      # default worker for bulk-read; runs a test call before saving
+shunt config write minimax              # default worker for code-write
+shunt config threshold 500              # block whole-file reads over this many lines
+shunt config key gemini <key>           # store an API key: gemini | minimax | deepseek | anthropic
+```
+
+A provider that fails its test call (bad key, unknown model) is refused and nothing changes.
+
+Two commands, both on PATH. They call the read and write providers shown above; keys live in `~/.config/shunt/env`.
 
 ## bulk-read: understand big files without reading them
 
