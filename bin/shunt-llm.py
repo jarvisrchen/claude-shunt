@@ -31,7 +31,14 @@ def call(provider, system, user, temperature=0.2, timeout=120):
             "generationConfig": {"temperature": temperature, "thinkingConfig": {"thinkingLevel": "minimal"}},
         }
         headers = {"x-goog-api-key": need("GEMINI_API_KEY")}
-        r = _post(url, body, headers, timeout)
+        try:
+            r = _post(url, body, headers, timeout)
+        except SystemExit as e:
+            # ponytail: 3.6 wants minimal, 3.8 rejects it and takes low; retry once rather than track per model
+            if "Thinking level MINIMAL is not supported" not in str(e):
+                raise
+            body["generationConfig"]["thinkingConfig"]["thinkingLevel"] = "low"
+            r = _post(url, body, headers, timeout)
         text = "".join(p.get("text", "") for p in r["candidates"][0]["content"]["parts"])
         u = r.get("usageMetadata", {})
         return text, u.get("promptTokenCount", 0), u.get("candidatesTokenCount", 0)
