@@ -3,7 +3,7 @@
 Files never enter Claude's context, only the worker's bullets do."""
 import argparse, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import importlib; llm = importlib.import_module("shunt-llm")
+import importlib; llm = importlib.import_module("shunt-llm"); shlog = importlib.import_module("shunt-log")
 llm.load_env()  # so SHUNT_*_PROVIDER from the config file feeds the argparse defaults
 
 SYSTEM = ("You are a precise code analyst. Read the provided files and answer the question concisely. "
@@ -19,4 +19,6 @@ a = ap.parse_args()
 t = time.time()
 text, pin, pout = llm.call(a.provider, SYSTEM, llm.wrap_files(a.paths) + f"\n\nQuestion: {a.question}")
 print(text.strip())
-print(f"\n[bulk-read {a.provider}: {pin} in / {pout} out tokens, {time.time()-t:.1f}s]", file=sys.stderr)
+dt = round(time.time() - t, 1)
+print(f"\n[bulk-read {a.provider}: {pin} in / {pout} out tokens, {dt}s]", file=sys.stderr)
+shlog.log("call", cmd="bulk-read", provider=a.provider, tokens_in=pin, tokens_out=pout, seconds=dt, paths=a.paths, question=a.question[:200])

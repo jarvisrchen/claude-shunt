@@ -3,6 +3,8 @@
 Exit 2 + stderr = block with the message fed back to Claude. Exit 0 = allow.
 Disable with `shunt off` (touches ~/.config/shunt/off) or SHUNT_OFF=1. SHUNT_MIN_LINES (default 350) is the threshold."""
 import json, os, re, shlex, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import importlib; shlog = importlib.import_module("shunt-log")
 
 MIN = int(os.environ.get("SHUNT_MIN_LINES", "350"))
 READ_CMDS = {"cat", "head", "tail", "less", "more"}
@@ -14,7 +16,10 @@ def lines_in(path):
     except OSError:
         return 0
 
+CTX = {}  # session/agent fields from the hook payload, attached to every event
+
 def block(paths, n):
+    shlog.log("block", paths=paths, lines=n, **CTX)
     files = " ".join(shlex.quote(p) for p in paths)
     sys.stderr.write(
         f"shunt: {n} lines is over SHUNT_MIN_LINES={MIN}. Do not read this whole file into context. "
@@ -30,10 +35,15 @@ def main():
         return
     d = json.load(sys.stdin)
     tool, inp = d.get("tool_name"), d.get("tool_input", {})
+    CTX.update({k: d.get(k) for k in ("session_id", "agent_id", "agent_type", "cwd")})
+    CTX["tool"] = tool
     if tool == "Read":
-        if inp.get("offset") is not None or inp.get("limit") is not None:
-            return
         p = inp.get("file_path", "")
+        if inp.get("offset") is not None or inp.get("limit") is not None:
+            n = lines_in(p)
+            if n > MIN:
+                shlog.log("slice", paths=[p], lines=n, limit=inp.get("limit"), **CTX)
+            return
         if p.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".pdf", ".ipynb")):
             return
         n = lines_in(p)
@@ -48,6 +58,9 @@ def main():
         except ValueError:
             return
         if not toks:
+            return
+        if toks[0] in ("bulk-read", "code-write"):
+            shlog.log("delegate", cmd=toks[0], args=cmd[:300], **CTX)
             return
         # rtk may have rewritten "cat f" to "rtk cat f"
         if toks[0] == "rtk" and len(toks) > 1:

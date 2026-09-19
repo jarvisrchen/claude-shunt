@@ -36,4 +36,4 @@ Debugging, architecture decisions, security-sensitive review, and anything where
 
 ## Escape hatches
 
-`shunt off` disables the hook for every session until `shunt on`; run it when the user says they want plain Claude for a while. `shunt status` shows the state. `SHUNT_MIN_LINES=800` raises the threshold for one process.
+`shunt off` disables the hook for every session until `shunt on`; run it when the user says they want plain Claude for a while. `shunt status` shows the state. `shunt stats` reports blocks, delegations, and worker token counts per provider, agent, and session from `~/.config/shunt/log.jsonl`. `SHUNT_MIN_LINES=800` raises the threshold for one process.

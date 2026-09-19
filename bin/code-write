@@ -3,7 +3,7 @@
 With --target the code goes straight to disk; Claude never sees it."""
 import argparse, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import importlib; llm = importlib.import_module("shunt-llm")
+import importlib; llm = importlib.import_module("shunt-llm"); shlog = importlib.import_module("shunt-log")
 llm.load_env()  # so SHUNT_*_PROVIDER from the config file feeds the argparse defaults
 
 SYSTEM = ("You generate code files based on a spec and reference files. Match the existing patterns, "
@@ -28,4 +28,6 @@ if a.target:
     print(f"wrote {a.target} ({len(code.splitlines())} lines)")
 else:
     sys.stdout.write(code)
-print(f"[code-write {a.provider}: {pin} in / {pout} out tokens, {time.time()-t:.1f}s]", file=sys.stderr)
+dt = round(time.time() - t, 1)
+print(f"[code-write {a.provider}: {pin} in / {pout} out tokens, {dt}s]", file=sys.stderr)
+shlog.log("call", cmd="code-write", provider=a.provider, tokens_in=pin, tokens_out=pout, seconds=dt, paths=a.reference, target=a.target, spec=a.spec[:200])

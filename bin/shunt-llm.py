@@ -10,6 +10,7 @@ def load_env():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
+                v = v.split(" #", 1)[0].strip()
                 os.environ.setdefault(k, v)
 
 def need(var):
@@ -37,12 +38,33 @@ def call(provider, system, user, temperature=0.2, timeout=120):
     if provider.startswith("minimax"):
         model = {"minimax": "MiniMax-M3"}.get(provider, provider.replace("minimax:", ""))
         url = "https://api.minimax.io/v1/text/chatcompletion_v2"
-        body = {"model": model, "temperature": temperature,
+        body = {"model": model, "temperature": temperature, "thinking": {"type": "disabled"},
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
         headers = {"Authorization": "Bearer " + need("MINIMAX_API_KEY")}
         r = _post(url, body, headers, timeout)
         if r.get("base_resp", {}).get("status_code"):
             sys.exit(f"minimax error: {r['base_resp']}")
+        u = r.get("usage", {})
+        return r["choices"][0]["message"]["content"], u.get("prompt_tokens", 0), u.get("completion_tokens", 0)
+    if provider.startswith("claude"):
+        model = {"claude": "claude-haiku-4-5"}.get(provider, provider.replace("claude:", ""))
+        url = "https://api.anthropic.com/v1/messages"
+        body = {"model": model, "max_tokens": 4096, "temperature": temperature,
+                "system": system, "messages": [{"role": "user", "content": user}]}
+        headers = {"x-api-key": need("ANTHROPIC_API_KEY"), "anthropic-version": "2023-06-01"}
+        r = _post(url, body, headers, timeout)
+        text = "".join(b.get("text", "") for b in r.get("content", []) if b.get("type") == "text")
+        u = r.get("usage", {})
+        return text, u.get("input_tokens", 0), u.get("output_tokens", 0)
+    if provider.startswith("deepseek"):
+        model = {"deepseek": "deepseek-flash"}.get(provider, provider.replace("deepseek:", ""))
+        url = "https://api.deepseek.com/chat/completions"
+        body = {"model": model, "temperature": temperature, "thinking": {"type": "disabled"},
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        headers = {"Authorization": "Bearer " + need("DEEPSEEK_API_KEY")}
+        r = _post(url, body, headers, timeout)
+        if "error" in r:
+            sys.exit(f"deepseek error: {r['error']}")
         u = r.get("usage", {})
         return r["choices"][0]["message"]["content"], u.get("prompt_tokens", 0), u.get("completion_tokens", 0)
     sys.exit(f"unknown provider {provider}")

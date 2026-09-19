@@ -20,7 +20,7 @@ Everything is stdlib Python 3 and bash. No dependencies, no package manager.
 - macOS or Linux (Windows via WSL). The install uses symlinks and `~/.local/bin`.
 - `git` and `python3` 3.8+. Nothing else: no pip packages, no npm. The scripts use only the Python standard library.
 - Claude Code installed, so `~/.claude/settings.json` exists for the hook.
-- An API key for at least one worker: Gemini (aistudio.google.com) or MiniMax (platform.minimax.io).
+- An API key for at least one worker: Gemini (aistudio.google.com), MiniMax (platform.minimax.io), Anthropic (console.anthropic.com) for Claude Haiku, or DeepSeek (platform.deepseek.com).
 
 `install.sh` checks the first three and stops with a one-line message if any is missing.
 
@@ -63,15 +63,19 @@ Then restart any open Claude Code sessions. Hooks are snapshotted when a session
 
 ## Choosing which LLM does the work
 
-Everything about models lives in one file, `~/.config/shunt/env`. You need a key for at least one provider. Leave the other blank.
+Everything about models lives in one file, `~/.config/shunt/env`. You need a key for at least one provider. Leave the others blank.
 
 ```
 GEMINI_API_KEY=...     # aistudio.google.com
 MINIMAX_API_KEY=...    # platform.minimax.io
+ANTHROPIC_API_KEY=...  # console.anthropic.com - optional, Claude Haiku as a worker
+DEEPSEEK_API_KEY=...   # platform.deepseek.com - optional, DeepSeek V4.1 Flash as a worker
 
 #SHUNT_READ_PROVIDER=gemini-3.6-flash   # who answers bulk-read
 #SHUNT_WRITE_PROVIDER=minimax           # who generates code-write output
 ```
+
+Put each `KEY=value` on its own line with nothing after the value - `load_env()` treats anything after the first ` #` on the line as a comment and strips it, but a key that legitimately contains ` #` (rare, but some providers allow it) would be truncated. Put such a key on a line by itself with no trailing comment.
 
 Defaults are Gemini 3.6 Flash for reads and MiniMax M3 for writes, the winners of the bake-off in [DESIGN.md](DESIGN.md). To change either, uncomment the line and set it. Takes effect on the next call, no restart.
 
@@ -81,15 +85,19 @@ Defaults are Gemini 3.6 Flash for reads and MiniMax M3 for writes, the winners o
 | MiniMax for everything, no Gemini account | `SHUNT_READ_PROVIDER=minimax` and leave `GEMINI_API_KEY` blank |
 | a different Gemini model | any model name from `/v1beta/models`, e.g. `gemini-3.5-flash-lite` |
 | a different MiniMax model | `minimax:MiniMax-M2.5` |
-| try one call on another model | `bulk-read --provider minimax ...` or `code-write --provider gemini-3.6-flash ...` |
+| Claude Haiku as the worker | `SHUNT_READ_PROVIDER=claude` / `SHUNT_WRITE_PROVIDER=claude`, or `claude:<model-id>` for a specific snapshot |
+| DeepSeek as the worker | `SHUNT_READ_PROVIDER=deepseek` / `SHUNT_WRITE_PROVIDER=deepseek` (V4.1 Flash, non-thinking), or `deepseek:<model-id>` for another one |
+| try one call on another model | `bulk-read --provider minimax ...` or `code-write --provider claude ...` |
 
-Adding a provider that is not Gemini or MiniMax (OpenAI, a local Ollama, anything with a chat endpoint) is one `elif` in `call()` in `bin/shunt-llm.py`: build the request, return `(text, prompt_tokens, completion_tokens)`. The rest of the tool does not care who answered.
+`claude` calls the real Anthropic Messages API with `ANTHROPIC_API_KEY` (not the Claude Code session you're running in), so it still costs real per-token money - see the Haiku row in the bake-off in [DESIGN.md](DESIGN.md) before switching a default to it. `deepseek` calls `deepseek-flash` (V4.1 Flash) with `thinking: {"type": "disabled"}` - same non-thinking treatment as the Gemini and Claude calls.
+
+Adding a provider that is not Gemini, MiniMax, Claude, or DeepSeek (OpenAI, a local Ollama, anything with a chat endpoint) is one `elif` in `call()` in `bin/shunt-llm.py`: build the request, return `(text, prompt_tokens, completion_tokens)`. The rest of the tool does not care who answered.
 
 ## Verify it is working
 
 ```bash
 shunt status                                   # shunt is ON (threshold 350 lines)
-shunt test                                     # ok: 11 hook cases
+shunt test                                     # ok: 12 hook cases, 5 log events, stats renders
 bulk-read --question "What does this file do?" --paths some/file-over-350-lines.py
 ```
 
@@ -116,6 +124,22 @@ code-write --spec "Write tests for UserService, same style as the reference" --r
 code-write --spec "Generate a config stub for staging" --reference config/prod.yaml   # no --target: prints to stdout
 ```
 
+## Telemetry
+
+Every hook decision and every worker call appends one JSON line to `~/.config/shunt/log.jsonl`.
+Four event kinds: `block` (the hook refused a whole-file read), `slice` (a targeted read of a file over the threshold), `delegate` (Claude ran `bulk-read` or `code-write`), and `call` (the worker model ran, with token counts and seconds).
+Hook events carry the `session_id`, `agent_id`, and `agent_type` that Claude Code puts in the hook payload, so subagent reads show up under their agent type.
+Worker calls carry the session id from `CLAUDE_CODE_SESSION_ID`.
+
+```bash
+shunt stats                        # last 7 days: totals, block-to-delegate ratio, per provider, per agent, per session, most blocked files
+shunt stats --since all --last 20  # everything, plus the last 20 raw events
+shunt stats --session 5129         # one session, by id prefix
+shunt log 50                       # tail the raw JSONL
+```
+
+`SHUNT_LOG` overrides the log path. Logging never raises, so a full disk or a bad line cannot break a tool call.
+
 ## Knobs
 
 | | effect |
@@ -132,11 +156,13 @@ bin/shunt-hook.py   PreToolUse hook (the allow/block rules)
 bin/shunt-llm.py    shared worker caller: Gemini + MiniMax, the two system prompts
 bin/bulk-read       delegated read
 bin/code-write      delegated write
-bin/shunt           on | off | status | test
+bin/shunt           on | off | status | test | stats | log
+bin/shunt-log.py    append-only JSONL telemetry shared by the hook and the scripts
+bin/shunt-stats.py  the report behind `shunt stats`
 skill/SKILL.md      what Claude reads to know when to delegate
 install.sh          idempotent installer
 uninstall.sh
-test_hook.py        11 allow/block cases
+test_hook.py        12 allow/block cases plus the log and stats check
 DESIGN.md           architecture, measurements, rollout plan
 ```
 
