@@ -49,8 +49,12 @@ def main(argv=None):
     print(f"  blocks {blocks}  slices {kinds['slice']}  delegates {kinds['delegate']}  worker calls {len(calls)}")
     if blocks:
         print(f"  after a block Claude delegated {kinds['delegate'] / blocks:.0%} of the time, sliced {kinds['slice'] / blocks:.0%}")
-    lines_kept_out = sum(r.get("lines", 0) for r in ev if r["event"] == "block")
-    print(f"  worker tokens: {tin:,} in, {tout:,} out (Claude saw only the out side)  lines kept out of context: {lines_kept_out:,}")
+    print(f"  routed to workers: {tin:,} tokens read by Gemini/MiniMax, {tout:,} returned to Claude, net {tin - tout:,} kept out of Claude (exact)")
+    # ponytail: 10 tokens/line is a rough code average; the hook never sees the file's token count
+    sliced = [r for r in ev if r["event"] == "slice"]
+    est = sum(r.get("lines", 0) - (r.get("limit") or 0) for r in sliced) * 10
+    if sliced:
+        print(f"  sliced instead of whole-file: {len(sliced)} reads, about {est:,} tokens avoided (estimate at 10 tokens/line)")
 
     if calls:
         print("\nby provider")
