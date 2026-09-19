@@ -36,6 +36,6 @@ assert kinds.count("block") == 3 and kinds.count("slice") == 1 and kinds.count("
 assert events[0]["session_id"] == "s1" and events[0]["agent_type"] == "Explore" and events[0]["lines"] == 400, events[0]
 STATS = os.path.join(os.path.dirname(HOOK), "shunt-stats.py")
 out = subprocess.run(["python3", STATS, "--since", "all"], capture_output=True, text=True).stdout
-assert "blocks 3" in out and "Explore" in out, out
+assert "Blocked reads:     3" in out and "Explore" in out, out
 os.unlink(LOG)
 print(f"ok: {len(cases)} hook cases, {len(events)} log events, stats renders")

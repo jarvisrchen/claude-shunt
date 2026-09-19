@@ -8,25 +8,34 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import importlib; shlog = importlib.import_module("shunt-log")
 
 UNITS = {"h": 3600, "d": 86400, "w": 604800}
+W = 72
 
 def since_arg(s):
-    if s == "all":
-        return None
-    return time.time() - int(s[:-1]) * UNITS[s[-1]]
+    return None if s == "all" else time.time() - int(s[:-1]) * UNITS[s[-1]]
 
 def agent_key(r):
-    a = r.get("agent_type") or r.get("agent_id")
-    return f"{a}" if a else "main"
+    return r.get("agent_type") or r.get("agent_id") or "main"
 
 def short(s, n):
-    return s if len(s) <= n else s[: n - 1] + "…"
+    return s if len(s) <= n else "…" + s[-(n - 1):]
 
-def table(rows, headers):
+def k(n):
+    return f"{n / 1e6:.1f}M" if n >= 1e6 else f"{n / 1e3:.1f}K" if n >= 1e3 else str(n)
+
+def meter(frac, width=24):
+    filled = int(round(max(0.0, min(1.0, frac)) * width))
+    return "█" * filled + "░" * (width - filled)
+
+def section(title):
+    print(f"\n{title}\n" + "─" * W)
+
+def table(rows, headers, right=()):
     rows = [[str(c) for c in row] for row in rows]
     w = [max(len(h), *(len(r[i]) for r in rows)) if rows else len(h) for i, h in enumerate(headers)]
-    print("  ".join(h.ljust(w[i]) for i, h in enumerate(headers)))
+    fmt = lambda r: "  ".join((c.rjust(w[i]) if i in right else c.ljust(w[i])) for i, c in enumerate(r))
+    print(fmt(headers))
     for r in rows:
-        print("  ".join(c.ljust(w[i]) for i, c in enumerate(r)))
+        print(fmt(r))
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
@@ -42,65 +51,65 @@ def main(argv=None):
         return
     kinds = Counter(r["event"] for r in ev)
     calls = [r for r in ev if r["event"] == "call"]
+    sliced = [r for r in ev if r["event"] == "slice"]
     tin = sum(r.get("tokens_in", 0) for r in calls)
     tout = sum(r.get("tokens_out", 0) for r in calls)
-    blocks = kinds["block"]
-    print(f"shunt telemetry, last {a.since}, {len(ev)} events, {len({r.get('session_id') for r in ev})} sessions")
-    print(f"  blocks {blocks}  slices {kinds['slice']}  delegates {kinds['delegate']}  worker calls {len(calls)}")
-    if blocks:
-        print(f"  after a block Claude delegated {kinds['delegate'] / blocks:.0%} of the time, sliced {kinds['slice'] / blocks:.0%}")
-    print(f"  routed to workers: {tin:,} tokens read by Gemini/MiniMax, {tout:,} returned to Claude, net {tin - tout:,} kept out of Claude (exact)")
     # ponytail: 10 tokens/line is a rough code average; the hook never sees the file's token count
-    sliced = [r for r in ev if r["event"] == "slice"]
     est = sum(r.get("lines", 0) - (r.get("limit") or 0) for r in sliced) * 10
-    if sliced:
-        print(f"  sliced instead of whole-file: {len(sliced)} reads, about {est:,} tokens avoided (estimate at 10 tokens/line)")
+    frac = (tin - tout) / tin if tin else 0.0
+
+    print(f"Shunt Telemetry (last {a.since}, {len({r.get('session_id') for r in ev})} sessions)")
+    print("═" * W)
+    print(f"Blocked reads:     {kinds['block']}")
+    print(f"Delegated:         {kinds['delegate']}   (worker calls {len(calls)})")
+    print(f"Sliced instead:    {kinds['slice']}")
+    print(f"Worker read:       {k(tin)} tokens")
+    print(f"Returned to Claude:{k(tout):>7} tokens")
+    print(f"Kept out of Claude:{k(tin - tout):>7} tokens ({frac:.1%}, exact)")
+    print(f"Slices avoided:   ~{k(est)} tokens (estimate, 10 tok/line)")
+    print(f"Delegation meter:  {meter(frac)} {frac:.1%}")
 
     if calls:
-        print("\nby provider")
+        section("By Provider")
         prov = defaultdict(lambda: [0, 0, 0, 0.0])
         for r in calls:
-            p = prov[f"{r.get('cmd')}/{r.get('provider')}"]
+            p = prov[f"{r.get('cmd')} {r.get('provider')}"]
             p[0] += 1; p[1] += r.get("tokens_in", 0); p[2] += r.get("tokens_out", 0); p[3] += r.get("seconds", 0)
-        table([[k, v[0], f"{v[1]:,}", f"{v[2]:,}", f"{v[3] / v[0]:.1f}s"] for k, v in sorted(prov.items())],
-              ["cmd/provider", "calls", "in", "out", "avg time"])
+        table([[n, v[0], k(v[1]), k(v[2]), f"{1 - v[2] / v[1]:.1%}" if v[1] else "-", f"{v[3] / v[0]:.1f}s",
+                meter((v[1] - v[2]) / max(tin - tout, 1), 10)] for n, v in sorted(prov.items(), key=lambda kv: -kv[1][1])],
+              ["Provider", "Calls", "In", "Out", "Saved%", "Avg", "Share"], right={1, 2, 3, 4, 5})
 
     hook_ev = [r for r in ev if r["event"] in ("block", "slice", "delegate")]
     if hook_ev:
-        print("\nby agent (who hit the hook)")
+        section("By Agent")
         ag = defaultdict(Counter)
         for r in hook_ev:
             ag[agent_key(r)][r["event"]] += 1
-        table([[k, c["block"], c["slice"], c["delegate"]] for k, c in sorted(ag.items(), key=lambda kv: -sum(kv[1].values()))],
-              ["agent", "blocks", "slices", "delegates"])
+        table([[n, c["block"], c["delegate"], c["slice"]] for n, c in sorted(ag.items(), key=lambda kv: -sum(kv[1].values()))],
+              ["Agent", "Blocks", "Delegates", "Slices"], right={1, 2, 3})
 
-        print("\nby session")
-        se = defaultdict(Counter)
-        tok = Counter()
+        section("By Session")
+        se = defaultdict(Counter); tok = Counter()
         for r in ev:
             s = (r.get("session_id") or "?")[:8]
             se[s][r["event"]] += 1
             if r["event"] == "call":
-                tok[s] += r.get("tokens_in", 0)
-        rows = sorted(se.items(), key=lambda kv: -sum(kv[1].values()))[:15]
-        table([[s, c["block"], c["slice"], c["delegate"], c["call"], f"{tok[s]:,}"] for s, c in rows],
-              ["session", "blocks", "slices", "delegates", "calls", "worker in"])
+                tok[s] += r.get("tokens_in", 0) - r.get("tokens_out", 0)
+        rows = sorted(se.items(), key=lambda kv: -tok[kv[0]])[:15]
+        table([[s, c["block"], c["delegate"], c["slice"], c["call"], k(tok[s])] for s, c in rows],
+              ["Session", "Blocks", "Delegates", "Slices", "Calls", "Kept out"], right={1, 2, 3, 4, 5})
 
-        print("\nmost blocked files")
-        files = Counter()
-        for r in ev:
-            if r["event"] == "block":
-                for p in r.get("paths", []):
-                    files[p] += 1
-        table([[n, short(p, 90)] for p, n in files.most_common(10)], ["n", "path"])
+        section("Most Blocked Files")
+        files = Counter(p for r in ev if r["event"] == "block" for p in r.get("paths", []))
+        table([[n, short(p, 60)] for p, n in files.most_common(10)], ["N", "Path"], right={0})
 
     if a.last:
-        print(f"\nlast {a.last} events")
+        section(f"Last {a.last} Events")
         for r in ev[-a.last:]:
             t = time.strftime("%m-%d %H:%M", time.localtime(r["ts"]))
             what = r.get("cmd") or ",".join(short(p, 40) for p in r.get("paths", []))
             extra = f"{r.get('tokens_in', 0)}/{r.get('tokens_out', 0)} tok" if r["event"] == "call" else f"{r.get('lines', '')} lines"
-            print(f"  {t} {r['event']:<8} {agent_key(r):<12} {what} {extra}")
+            print(f"{t}  {r['event']:<8} {agent_key(r):<10} {what}  {extra}")
 
 if __name__ == "__main__":
     main()
