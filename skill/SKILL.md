@@ -5,23 +5,30 @@ description: Delegate large file reads and boilerplate generation to a cheap wor
 
 # shunt: bulk-read and code-write
 
-## Current configuration
+## `/shunt <args>` runs `shunt <args>`
+
+Same subcommands as the CLI, same arguments. The block below is the output of `shunt $ARGUMENTS` (with no arguments: `shunt status`).
 
 ```
-!`shunt config $ARGUMENTS`
+!`shunt $ARGUMENTS`
 ```
 
-If the user invoked `/shunt` with arguments, the block above is the result of `shunt config <arguments>`: relay it verbatim in a code block, then stop.
-Exception, `/shunt pick [read|write]`: the block above is a numbered model list. Use AskUserQuestion to let the user choose: first the vendor (gemini, minimax, deepseek, anthropic, only those with a key), then the model within that vendor (newest first, at most four options; the user can type any other id via Other). Then run `shunt config <read|write> <chosen model>` and relay its output. Default job is read when none was given.
-To change a setting for the user, run one of these and relay the output:
+Relay that block to the user verbatim in one fenced code block, then stop. Two exceptions:
+
+- `config pick [read|write]`: the block is a numbered model list. Use AskUserQuestion to let the user choose, first the vendor (only those with a key), then the model within it (newest first, at most four options; any other id via Other). Then run `shunt config <read|write> <chosen model>` and relay its output.
+- no arguments: after the status line, the user probably wants the guide below, so answer their question from it.
 
 ```bash
-shunt config read gemini-3.8-flash      # default worker for bulk-read; runs a test call before saving
-shunt config write minimax              # default worker for code-write
-shunt config threshold 500              # block whole-file reads over this many lines
-shunt config key gemini <key>           # store an API key: gemini | minimax | deepseek | anthropic
-shunt config models [gemini]            # list the models each vendor offers, ready to paste into read/write
-shunt config pick [read|write]          # numbered menu in a terminal; in Claude Code use /shunt pick and choose from the prompt
+shunt status | on | off                  # the hook: state, enable, disable (no restart)
+shunt stats [--since 7d|all] [--last N]  # telemetry: blocks, delegations, tokens kept out of Claude, per provider/agent/session
+shunt config                             # show providers, threshold, which keys are set
+shunt config read gemini-3.8-flash       # default worker for bulk-read; runs a test call before saving
+shunt config write minimax               # default worker for code-write
+shunt config threshold 500               # block whole-file reads over this many lines
+shunt config key gemini <key>            # store an API key: gemini | minimax | deepseek | anthropic
+shunt config models [gemini]             # list the models each vendor offers, in the form read/write accept
+shunt config pick [read|write]           # choose one from a menu
+shunt log [N]                            # tail the raw telemetry
 ```
 
 A provider that fails its test call (bad key, unknown model) is refused and nothing changes.

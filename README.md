@@ -52,7 +52,7 @@ The clone can live anywhere. Nothing is copied out of it: the commands, the skil
 `install.sh` is idempotent (re-run it after `git pull`). It:
 
 - symlinks `bulk-read`, `code-write`, `shunt` into `~/.local/bin` (warns if that is not on PATH)
-- symlinks `~/.claude/skills/shunt` to the repo's `skill/` folder (the `/shunt` command: config, pick, and the delegation guide) and `~/.claude/skills/shunt-stats` to `skills/shunt-stats/` (the `/shunt-stats` report)
+- symlinks `~/.claude/skills/shunt` to the repo's `skill/` folder (the `/shunt` command: `/shunt <args>` runs `shunt <args>`, plus the delegation guide)
 - creates `~/.config/shunt/env` (mode 600) if missing; **fill in both keys**
 - inserts the hook entry at the top of `hooks.PreToolUse` in `~/.claude/settings.json`, replacing any older shunt entry
 - runs the hook self-test
@@ -78,7 +78,7 @@ DEEPSEEK_API_KEY=...   # platform.deepseek.com - optional, DeepSeek V4.1 Flash a
 Put each `KEY=value` on its own line with nothing after the value - `load_env()` treats anything after the first ` #` on the line as a comment and strips it, but a key that legitimately contains ` #` (rare, but some providers allow it) would be truncated. Put such a key on a line by itself with no trailing comment.
 
 Defaults are Gemini 3.6 Flash for reads and MiniMax M3 for writes, the winners of the bake-off in [DESIGN.md](DESIGN.md).
-Change them with `shunt config` (or `/shunt <same arguments>` inside Claude Code), which edits this file for you and runs a one-line test call before saving a provider:
+Change them with `shunt config` (inside Claude Code, `/shunt config ...`, since `/shunt <args>` runs `shunt <args>`), which edits this file for you and runs a one-line test call before saving a provider:
 
 ```bash
 shunt config                            # show providers, threshold, which keys are set
@@ -87,7 +87,7 @@ shunt config write minimax              # default worker for code-write
 shunt config threshold 500              # block whole-file reads over this many lines
 shunt config key gemini <key>           # store an API key: gemini | minimax | deepseek | anthropic
 shunt config models [gemini]            # list the models each vendor offers, ready to paste into read/write
-shunt config pick [read|write]          # numbered menu, sets the one you choose; /shunt pick does the same inside Claude Code
+shunt config pick [read|write]          # numbered menu, sets the one you choose; /shunt config pick prompts inside Claude Code
 ```
 
 Editing the file by hand works too. Either way it takes effect on the next call, no restart.
@@ -151,7 +151,7 @@ shunt stats --session 5129         # one session, by id prefix
 shunt log 50                       # tail the raw JSONL
 ```
 
-Inside Claude Code, `/shunt-stats` runs the same report (arguments pass through, e.g. `/shunt-stats --since all`).
+Inside Claude Code, `/shunt stats` runs the same report (arguments pass through, e.g. `/shunt stats --since all`).
 
 `SHUNT_LOG` overrides the log path. Logging never raises, so a full disk or a bad line cannot break a tool call.
 
@@ -175,8 +175,7 @@ bin/shunt           on | off | status | test | stats | log | config
 bin/shunt-config.py show or change providers, threshold, keys
 bin/shunt-log.py    append-only JSONL telemetry shared by the hook and the scripts
 bin/shunt-stats.py  the report behind `shunt stats`
-skill/SKILL.md      what Claude reads to know when to delegate
-skills/shunt-stats/SKILL.md  the /shunt-stats slash command
+skill/SKILL.md      the /shunt command and what Claude reads to know when to delegate
 install.sh          idempotent installer
 uninstall.sh
 test_hook.py        12 allow/block cases plus the log and stats check
