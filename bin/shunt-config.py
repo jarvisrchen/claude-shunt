@@ -4,8 +4,9 @@ shunt config read <provider>      default worker for bulk-read   (gemini-3.8-fla
 shunt config write <provider>     default worker for code-write
 shunt config threshold <lines>    whole-file reads over this many lines get blocked
 shunt config key <vendor> <key>   store an API key: gemini | minimax | deepseek | anthropic
+shunt config models [vendor]      list models each vendor offers, as the strings read/write accept
 Edits ~/.config/shunt/env in place. Setting a provider runs a one-line test call against it."""
-import os, re, sys
+import json, os, re, sys, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import importlib; llm = importlib.import_module("shunt-llm")
 
@@ -45,6 +46,36 @@ def show():
         k = os.environ.get(var, "")
         print(f"  {vendor:<10} {k[:6] + '…' if k else 'not set'}")
 
+SKIP = ("tts", "image", "transcribe", "robotics", "computer-use", "omni", "lyria", "gemma", "antigravity", "deep-research", "banana")
+
+def _get(url, headers):
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=20) as r:
+        return json.load(r)
+
+def models(only=None):
+    llm.load_env()
+    lists = {
+        "gemini": lambda k: [m["name"].split("/", 1)[1] for m in _get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {"x-goog-api-key": k}).get("models", [])
+                             if "generateContent" in m.get("supportedGenerationMethods", []) and not any(x in m["name"] for x in SKIP)],
+        "minimax": lambda k: ["minimax:" + m["id"] for m in _get("https://api.minimax.io/v1/models", {"Authorization": "Bearer " + k})["data"]],
+        "deepseek": lambda k: ["deepseek:" + m["id"] for m in _get("https://api.deepseek.com/models", {"Authorization": "Bearer " + k})["data"]],
+        "anthropic": lambda k: ["claude:" + m["id"] for m in _get("https://api.anthropic.com/v1/models?limit=100", {"x-api-key": k, "anthropic-version": "2023-06-01"})["data"]],
+    }
+    for vendor, fn in lists.items():
+        if only and vendor != only:
+            continue
+        key = os.environ.get(VENDORS[vendor], "")
+        print(f"{vendor}:")
+        if not key:
+            print("  (no key set)")
+            continue
+        try:
+            for m in fn(key):
+                print(f"  {m}")
+        except Exception as e:
+            print(f"  error: {str(e)[:120]}")
+    print("\nuse one with:  shunt config read <model>   or   shunt config write <model>")
+
 def test(provider):
     try:
         text, pin, pout = llm.call(provider, "Reply with the single word ok.", "ping", timeout=60)
@@ -72,6 +103,8 @@ def main(argv):
     elif cmd == "threshold" and len(args) == 1 and args[0].isdigit():
         set_var(VARS[cmd], args[0])
         print(f"threshold = {args[0]} lines  (takes effect on the next tool call)")
+    elif cmd == "models" and len(args) <= 1 and (not args or args[0] in VENDORS):
+        models(args[0] if args else None)
     elif cmd == "key" and len(args) == 2 and args[0] in VENDORS:
         set_var(VENDORS[args[0]], args[1])
         print(f"{VENDORS[args[0]]} saved")

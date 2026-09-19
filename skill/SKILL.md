@@ -19,6 +19,7 @@ shunt config read gemini-3.8-flash      # default worker for bulk-read; runs a t
 shunt config write minimax              # default worker for code-write
 shunt config threshold 500              # block whole-file reads over this many lines
 shunt config key gemini <key>           # store an API key: gemini | minimax | deepseek | anthropic
+shunt config models [gemini]            # list the models each vendor offers, ready to paste into read/write
 ```
 
 A provider that fails its test call (bad key, unknown model) is refused and nothing changes.
